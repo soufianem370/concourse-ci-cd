@@ -1,8 +1,8 @@
 # Docker
-docker-hub-email: <<DOCKER HUB EMAIL>>
-docker-hub-username: <<DOCKER USERNAME>>
-docker-hub-password: <<DOCKER PASSWORD>>
-docker-hub-repo-name: <<DOCKER REPO NAME>>
+docker-hub-email: soufianem370@gmail.com
+docker-hub-username: soufianem370
+docker-hub-password: M@na198654
+docker-hub-repo-name: web
 
 # Kubernetes
 server: <<API SERVER URI>>

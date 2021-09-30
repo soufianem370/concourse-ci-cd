@@ -32,12 +32,12 @@ jobs:
     plan: 
       - 
         params: 
-          chart: bitnami/mysql
+          chart: source-repo/chart-0.0.1.tgz
           override_values: 
             - 
               key: replicas
               value: 2
-          #values: sour<        ce-repo/values.yaml
+          values: source-repo/values.yaml
         put: myapp-helm
     public: true
     serial: true
@@ -65,8 +65,8 @@ resource_types:
   - 
     name: helm
     source: 
-      repository: typositoire/concourse-helm3-resource
-      #tag: latest
+      repository: linkyard/concourse-helm-resource
+      tag: latest
     type: docker-image
 resources: 
   - 
@@ -94,8 +94,8 @@ resources:
       kubeconfig_path: ./config
       repos: 
         - 
-          name: bitnami
-          url: "https://charts.bitnami.com/bitnami"
+          name: myrepo
+          url: "http://soufianem370.gitlab.io/chart/"
     type: helm
   - 
     name: kubectl
