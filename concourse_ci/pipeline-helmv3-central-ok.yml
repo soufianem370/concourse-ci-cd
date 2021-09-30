@@ -1,0 +1,107 @@
+--- 
+jobs: 
+  - 
+    name: test
+    plan: 
+      - 
+        get: spring-boot-service
+        trigger: true
+      - 
+        file: spring-boot-service/concourse_ci/tasks/maven-test.yml
+        task: mvn-test
+    public: true
+  - 
+    name: package
+    plan: 
+      - 
+        get: spring-boot-service
+        passed: 
+          - test
+        trigger: true
+      - 
+        file: spring-boot-service/concourse_ci/tasks/maven-package.yml
+        task: mvn-package
+      - 
+        params: 
+          build: spring-boot-service-out
+        put: spring-boot-service-docker-repository
+    public: true
+    serial: true
+  - 
+    name: deploy-helm
+    plan: 
+      - 
+        params: 
+          chart: bitnami/mysql
+          override_values: 
+            - 
+              key: replicas
+              value: 2
+          #values: sour<        ce-repo/values.yaml
+        put: myapp-helm
+    public: true
+    serial: true
+  - 
+    name: deploy
+    plan: 
+      - 
+        get: spring-boot-service
+        passed: 
+          - package
+        trigger: false
+      - 
+        params: 
+          file: spring-boot-service/spring-boot-deploy.yaml
+        put: kubectl
+    public: true
+    serial: true
+resource_types: 
+  - 
+    name: kubectl-resource
+    source: 
+      repository: jmkarthik/concourse-kubectl-resource
+      tag: latest
+    type: docker-image
+  - 
+    name: helm
+    source: 
+      repository: typositoire/concourse-helm3-resource
+      #tag: latest
+    type: docker-image
+resources: 
+  - 
+    name: spring-boot-service
+    source: 
+      branch: master
+      uri: "https://github.com/soufianem370/concourse-ci-cd.git"
+    type: git
+  - 
+    name: spring-boot-service-docker-repository
+    source: 
+      email: ((docker-hub-email))
+      password: ((docker-hub-password))
+      repository: ((docker-hub-username))/((docker-hub-repo-name))
+      username: ((docker-hub-username))
+    type: docker-image
+  - 
+    name: myapp-helm
+    source: 
+      admin_cert: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURJVENDQWdtZ0F3SUJBZ0lJT0lKcDF2dWpoTWd3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TVRBMk1EWXlNVEV6TkRKYUZ3MHlNakEyTURZeU1URXpORFphTURReApGekFWQmdOVkJBb1REbk41YzNSbGJUcHRZWE4wWlhKek1Sa3dGd1lEVlFRREV4QnJkV0psY201bGRHVnpMV0ZrCmJXbHVNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQXdZWHVnOHZLRk9rNDJYSHoKb050QjlWbXFpMTcwYVN2RVdQZGEvN2xTSzFNY21abnhvaThtTFVCQmFEZFFyL2xyMDRRMDFXMG4ybGJQU2VWMwpFTkF2RlBWRnVFdHdzMTlIVFhWaFhTdjV4dG1xdFl3YnE3MS8xeDNLQ0pVMWRPOGtva0FwenRIRGl4ZWVQMWVECkRZTFA3U3dQRmUxSFhPRUoreUNjV3czTUhGbmpOUjRTZ3FNa0dkYjVqcFNxdEExTWJ1MjVIR2xPcDFtN3JXdXQKbVVpUnRkQ0tWVFYyeXdORFNtc0N0Zm5jb24yZGlzeWdnRHdFZFRRRS8rdGQ3QzB5RUQ3Q1NsdGZ3MktxcmpQSgo0Q2J2TWFrNVNCK1lZZGpBNjQzNk5VMFFKMkxYNXJqUnRhdjIxakRtMENhNkNvcUtvT2YzTW1xREM5d2FvOXNjCkxsZmZsd0lEQVFBQm8xWXdWREFPQmdOVkhROEJBZjhFQkFNQ0JhQXdFd1lEVlIwbEJBd3dDZ1lJS3dZQkJRVUgKQXdJd0RBWURWUjBUQVFIL0JBSXdBREFmQmdOVkhTTUVHREFXZ0JTYnlYQkZmaEJybGxvSUZqditTdExEeG0xcgorekFOQmdrcWhraUc5dzBCQVFzRkFBT0NBUUVBamlDRFNCTzJKWi9xbXJhMVpLKzV4MXV2YmVCYytzMDZPOElMCmUrYTRmVmFwalNabERyaXRxTXBGUGRyUmlmNTRXYzl4dEJUNzMrSmFtS0lLNGRPVTh3cFhiam1LMFgwS0d1UWYKQjA3eUVNdjdMVnVVTzRqTDlSb0x2U0VibVNPczdDWkQzVDF5MzVuLzg1R1dneDZXclIybmIxYk1zdGhzejNiSQpMaHNmK05MNUJ4SUM4OUgvVXlFNldLaWVscXI4YUFRcTkyYTZJZEJVcWhQbHVNK1lWSENNOS96QkdPWXNDQ2RjCk9kazllYVAxWUJnVnBNTmlZdTc5bmpGVjBzOGdmTDUvbE4yUWk3azNsckVEM3FZd3JHR1RPTEFqMHZHQ05sdWgKcFF3YzVhT0NPZ2Qrbko2V0lWZXpUTnpTczRpYTB5c2dRc29RWno1cEJVV096NFBlR1E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+
+      admin_key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBd1lYdWc4dktGT2s0MlhIem9OdEI5Vm1xaTE3MGFTdkVXUGRhLzdsU0sxTWNtWm54Cm9pOG1MVUJCYURkUXIvbHIwNFEwMVcwbjJsYlBTZVYzRU5BdkZQVkZ1RXR3czE5SFRYVmhYU3Y1eHRtcXRZd2IKcTcxLzF4M0tDSlUxZE84a29rQXB6dEhEaXhlZVAxZUREWUxQN1N3UEZlMUhYT0VKK3lDY1d3M01IRm5qTlI0UwpncU1rR2RiNWpwU3F0QTFNYnUyNUhHbE9wMW03cld1dG1VaVJ0ZENLVlRWMnl3TkRTbXNDdGZuY29uMmRpc3lnCmdEd0VkVFFFLyt0ZDdDMHlFRDdDU2x0ZncyS3FyalBKNENidk1hazVTQitZWWRqQTY0MzZOVTBRSjJMWDVyalIKdGF2MjFqRG0wQ2E2Q29xS29PZjNNbXFEQzl3YW85c2NMbGZmbHdJREFRQUJBb0lCQUhaZ0RuM2Y4a1RJUkZYKwpOaUIyL2VtdVozdkpJWWdUbFk4MS94dmRxRDJJSVQ1enhES0kxTGxwVEprSy9QZ25nYVZvZ1VqcjlDekNYUm0rCm13NVZ5ZmJ2OFMzQ043WUEyZ1N2Z0ZjVnh6dXplWkNEbTRsNTZQRVU3N2hBVE9xeVBaNWgwVEVKYnF0dVR3WS8KNlpJaUtqM1JiWWprRTNya3pNNG9MSHdsL0d4Nkh2YUpKMUNhOHQ1OE05THY2TmQwVk5XUDBFVUNwUWxROTJEcgp1SXZHVHQ1N0ZXeVpFZzU4dmsxakl3QldWM0pwUmhkNzlBNlNHOHNONERtcGt3c2E5ZFdQdzNKOVc2MDkrSDI3ClZiYWdjM1RLRGNGdnJHbHIvUll3bnQ0Y0NkZVBxS2FDamNreUFwejZTVWZ5VThrelN5UUJJOUlSbkJ2NE00cEIKaUJBVjRjRUNnWUVBMlNXU2NtZWJnK1dyTWVNODd1YlV5anBPcVIzY1RJdC9Bd3J0b1l0YXNSM2hrV1hEWkJNVQpyN3M4c1RvSFJDVWRabEhkeDhlMndxdlVyK2NGNWFQb1BVS0lOeExuZXlkSDVLMGZvK2JTL0laS0RORjVPTUQ2ClVYRTR1QXZ5SVB0c2lzaENCVnJSdERucDlxYUYwcS9ibHR1ZG5CSlRETndOeGJIQXUwc2lnK1VDZ1lFQTVDWkgKVmNNSzM0c1RzL1I1OEN1bUVHdmVVcUlETmo1MEZQQWdNSlhVWGlMaEdrd3Q0VGVvbTF5eWVyMmpRZ3R5Sk8yZAo1clBpSG9EUlBLRVZuWXZlK3JuMUhxUWNaRUxZRVVpZ3hVQ29idnV5aUV2MUF0aW5iSE1rOHNlT0VzRzl6QWhGCmhicFdMS1kxT011QWlwdVNEMXpKK1ZLOFlsUkJTRFdPc0swUmxjc0NnWUVBeWJoR2lETEpYRWp4dFFGazdJWFEKN1NBblRLRnBzazN3S3BKdldCK05tM1dud3hzbTNRT0F0eE1YK1lkdmtwVnI3MDVqMmFBa25rbGo1aGlWK05NLwovaENkVzVRYkorUEF2S1U2L0ZhRWI0UU1yRVczOThvRmY3elBOT0ljQnhtcHBtOE1MYzlGZWNoSEdSTnV3OThMCi9lTjhVYTBRSzZVTXdqY3pWSW9pd1NVQ2dZQXZkbzhzbGxEeXhIb3EyOWRxVVlwUXJFQXFMSzVDWUtmQm0xcjMKQUpTWHFPWHZsSjJPMXdkcW10USttS2tZR2sxNnhUd3VQSW4wRXBSMDZvWVdxbnlPNkpUSDlSZzYrM1Q3MDRJdQp4dzdEVi9XQ1NWc0ZacEVlREs1Skc1N0E1REZaK3ZhTHBZSTc4Ni9xeXR0SStxaGVMYzJPNHRseUUxa3Bib3JxCjBuWndGUUtCZ0QzZzZDSGNKbXNPOWtRZ0h5MEx4R2NPM1dZdUdoelJ5U2dhaUN1MlY1SHo5T1BURmh0Y3RoSzEKTlJzcEd6NFJYdFRJZ016NVV1VEkzem5uR1VzVEw4emJEb1JiY0NrYnBjT1RoZWY3QjU1MzRsbVJNM2dHZFc4NQp0QVNKNTRzTXk3enpxTjdaK2hsamM2Z1ZFZisrTUFESG5RaGN2SEdxbkpqcnE1dzRpcE44Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==
+      cluster_ca: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeE1EWXdOakl4TVRNME1sb1hEVE14TURZd05ESXhNVE0wTWxvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBUGZSCnRTWElmdDI4ejdjanFXb1h0S3Q5UmR4QStlNTVyREtROVdnT3VMQUJrOHpaVFZwaS93d0phbTdxbW5hYnE4Z0UKbjFJUlpaYjliU1dEcTVweGdWdHIweUxXQ3h2d0tGOVpuWFhaZUxRYXIrRXg5QTUrMGdqeVpMaHBPdEo2cWxHVAp1VlBidVJQa2JBckwxNTRqQm9sclErZ3cvcGNVWm03OHYrZXJnLzJaazVTUHRubGNIb3NUbndPNVZ3cFVQVGtqCmlBNzVKQ1NmbStzMHB4eEp5cUR0aTU0R3FjdUVBeWF0NW80bSs0NEcvc3pzWi9IU2svRmhHZUZvK3BoQnBJa24KUnVLUGVHZU5vblNRVC83WUEyRVp0Ri80TXhaV2pJWDlMRjdvcmVaS2hJMitTcnVES21ieG50Ym9lZUM0d1BoWAowUmczWkdBMm9TOHNLRmdIZ0dVQ0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZKdkpjRVYrRUd1V1dnZ1dPLzVLMHNQR2JXdjdNQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFDWS9JSnRaVVU3ZW1NcEY2RmJmRlpHM1VlTnlVUjJ1ayswNTc2dEVzbkozcUtrZ1FhYgpSRzFrQkZGMjl5a0ZqNjBKKzdsRldIRTdIQmFOejdmZ0ZlaVZYR0ZoVkpZUlJORGNBN3lYRVZDTk1oaVExZXoyCmFoenp5Z0tWWjlPMHV1RDZ3azVNUWp0VjBoUEpDaFBJZm9OdTBjN2RPNXdFbTlKTkpaQW5MVXAyQVJUVDFSU3gKKzVucDRVemZQU0RPSi9PL0wvUnRIQ2xnczJObndsb3NSK3BPK2QzcFEwL1NEb252MHdqZEZpWEtaQysyYktIOQo5RlRlb3Z3THdUN1ZyWVVsZXhybW40ZDJ3bDRqbUNBVy9jVjkxTEdyUmdKNXZ6N0JVckxkTm5EVUlNZHVVOWF3CmxDNDFaNHRNMmlKWnF2WXdIYlpCSFRlazJrNzN0MjFvbXEwdAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+      cluster_url: "https://172.16.16.100:6443"
+      kubeconfig_path: ./config
+      repos: 
+        - 
+          name: bitnami
+          url: "https://charts.bitnami.com/bitnami"
+    type: helm
+  - 
+    name: kubectl
+    source: 
+      api_server_uri: ((server))
+      certificate_authority_data: ((cad))
+      namespace: ((namespace))
+      token: ((token))
+    type: kubectl-resource
