@@ -31,8 +31,10 @@ jobs:
     name: deploy-helm
     plan: 
       - 
-        params: 
-          chart: bitnami/mysql
+        params:
+          #chart: bitnami/mysql
+          chart: nginx-9.5.4.tgz
+          #values: source-repo/values.yaml
           override_values: 
             - 
               key: replicas
